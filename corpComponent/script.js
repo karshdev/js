@@ -212,9 +212,11 @@ const renderFeedbackItem = (feedbackItem) => {
         .textContent.toLowerCase()
         .trim();
 
-      // remove feedback item from list if company names are not equal
+      // hide feedback item if company names are not equal
       if (companyNameFromHashtag !== companyNameFromFeedbackItem) {
-        childNode.remove();
+        childNode.style.display = "none";
+      } else {
+        childNode.style.display = "flex"; // Show matching items
       }
     });
   };
