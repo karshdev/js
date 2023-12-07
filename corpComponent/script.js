@@ -1,225 +1,105 @@
 // -- GLOBAL --
-const MAX_CHARS = 150;
-const BASE_API_URL = "https://bytegrad.com/course-assets/js/1/api";
+const bookmarksBtnEl = document.querySelector(".bookmarks-btn");
+const errorEl = document.querySelector(".error");
+const errorTextEl = document.querySelector(".error__text");
+const jobDetailsEl = document.querySelector(".job-details");
+const jobDetailsContentEl = document.querySelector(".job-details__content");
+const jobListBookmarksEl = document.querySelector(".job-list--bookmarks");
+const jobListSearchEl = document.querySelector(".job-list--search");
+const numberEl = document.querySelector(".count__number");
+const paginationEl = document.querySelector(".pagination");
+const paginationBtnNextEl = document.querySelector(".pagination__button--next");
+const paginationBtnBackEl = document.querySelector(".pagination__button--back");
+const paginationNumberNextEl = document.querySelector(
+  ".pagination__number--next"
+);
+const paginationNumberBackEl = document.querySelector(
+  ".pagination__number--back"
+);
+const searchFormEl = document.querySelector(".search");
+const searchInputEl = document.querySelector(".search__input");
+const sortingEl = document.querySelector(".sorting");
+const sortingBtnRelevantEl = document.querySelector(
+  ".sorting__button--relevant"
+);
+const sortingBtnRecentEl = document.querySelector(".sorting__button--recent");
+const spinnerSearchEl = document.querySelector(".spinner--search");
+const spinnerJobDetailsEl = document.querySelector(".spinner--job-details");
 
-const textareaEl = document.querySelector(".form__textarea");
-const counterEl = document.querySelector(".counter");
-const formEl = document.querySelector(".form");
-const feedbackListEl = document.querySelector(".feedbacks");
-const submitBtnEl = document.querySelector(".submit-btn");
-const spinnerEl = document.querySelector(".spinner");
-const hashtagListEl = document.querySelector(".hashtags");
+// -- SEARCH COMPONENT --
+const submitHandler = (event) => {
+  // prevent default behavior
+  event.preventDefault();
 
-const renderFeedbackItem = (feedbackItem) => {
-  // new feedback item HTML
-  const feedbackItemHTML = `
-        <li class="feedback">
-            <button class="upvote">
-                <i class="fa-solid fa-caret-up upvote__icon"></i>
-                <span class="upvote__count">${feedbackItem.upvoteCount}</span>
-            </button>
-            <section class="feedback__badge">
-                <p class="feedback__letter">${feedbackItem.badgeLetter}</p>
-            </section>
-            <div class="feedback__content">
-                <p class="feedback__company">${feedbackItem.company}</p>
-                <p class="feedback__text">${feedbackItem.text}</p>
-            </div>
-            <p class="feedback__date">${
-              feedbackItem.daysAgo === 0 ? "NEW" : `${feedbackItem.daysAgo}d`
-            }</p>
-        </li>
-    `;
+  // get search text
+  const searchText = searchInputEl.value;
 
-  // insert new feedback item in list
-  feedbackListEl.insertAdjacentHTML("beforeend", feedbackItemHTML);
+  // validation (regular expression example)
+  const forbiddenPattern = /[0-9]/;
+  const patternMatch = forbiddenPattern.test(searchText);
+  if (patternMatch) {
+    errorTextEl.textContent = "Your search may not contain numbers";
+    errorEl.classList.add("error--visible");
+    setTimeout(() => {
+      errorEl.classList.remove("error--visible");
+    }, 3500);
+  }
+
+  // blur input
+  searchInputEl.blur();
+
+  // remove previous job items
+  jobListSearchEl.innerHTML = "";
+
+  // render spinner
+  spinnerSearchEl.classList.add("spinner--visible");
+
+  // fetch search results
+  fetch(`https://bytegrad.com/course-assets/js/2/api/jobs?search=${searchText}`)
+    .then((response) => {
+      if (!response.ok) {
+        console.log("Something went wrong");
+        return;
+      }
+
+      return response.json();
+    })
+    .then((data) => {
+      // extract job items
+      const { jobItems } = data;
+
+      // remove spinner
+      spinnerSearchEl.classList.remove("spinner--visible");
+
+      // render number of results
+      numberEl.textContent = jobItems.length;
+
+      // render job items in search job list
+      jobItems.slice(0, 7).forEach((jobItem) => {
+        const newJobItemHTML = `
+                    <li class="job-item">
+                        <a class="job-item__link" href="${jobItem.id}">
+                            <div class="job-item__badge">${jobItem.badgeLetters}</div>
+                            <div class="job-item__middle">
+                                <h3 class="third-heading">${jobItem.title}</h3>
+                                <p class="job-item__company">${jobItem.company}</p>
+                                <div class="job-item__extras">
+                                    <p class="job-item__extra"><i class="fa-solid fa-clock job-item__extra-icon"></i> ${jobItem.duration}</p>
+                                    <p class="job-item__extra"><i class="fa-solid fa-money-bill job-item__extra-icon"></i> ${jobItem.salary}</p>
+                                    <p class="job-item__extra"><i class="fa-solid fa-location-dot job-item__extra-icon"></i> ${jobItem.location}</p>
+                                </div>
+                            </div>
+                            <div class="job-item__right">
+                                <i class="fa-solid fa-bookmark job-item__bookmark-icon"></i>
+                                <time class="job-item__time">${jobItem.daysAgo}d</time>
+                            </div>
+                        </a>
+                    </li>
+                `;
+        jobListSearchEl.insertAdjacentHTML("beforeend", newJobItemHTML);
+      });
+    })
+    .catch((error) => console.log(error));
 };
 
-// -- COUNTER COMPONENT --
-(() => {
-  const inputHandler = () => {
-    // determine maximum number of characters
-    const maxNrChars = MAX_CHARS;
-
-    // determine number of characters currently typed
-    const nrCharsTyped = textareaEl.value.length;
-
-    // calculate number of characters left (maximum minus currently typed)
-    const charsLeft = maxNrChars - nrCharsTyped;
-
-    // show number of characters left
-    counterEl.textContent = charsLeft;
-  };
-
-  textareaEl.addEventListener("input", inputHandler);
-})();
-
-// -- FORM COMPONENT --
-(() => {
-  const showVisualIndicator = (textCheck) => {
-    const className = textCheck === "valid" ? "form--valid" : "form--invalid";
-
-    // show valid indicator
-    formEl.classList.add(className);
-
-    // remove visual indicator
-    setTimeout(() => {
-      formEl.classList.remove(className);
-    }, 2000);
-  };
-
-  const submitHandler = (event) => {
-    // prevent default browser action (submitting form data to 'action'-address and refreshing page)
-    event.preventDefault();
-
-    // get text from textarea
-    const text = textareaEl.value;
-
-    // validate text (e.g. check if #hashtag is present and text is long enough)
-    if (text.includes("#") && text.length >= 5) {
-      showVisualIndicator("valid");
-    } else {
-      showVisualIndicator("invalid");
-
-      // focus textarea
-      textareaEl.focus();
-
-      // stop this function execution
-      return;
-    }
-
-    // we have text, now extract other info from text
-    const hashtag = text.split(" ").find((word) => word.includes("#"));
-    const company = hashtag.substring(1);
-    const badgeLetter = company.substring(0, 1).toUpperCase();
-    const upvoteCount = 0;
-    const daysAgo = 0;
-
-    // render feedback item in list
-    const feedbackItem = {
-      upvoteCount: upvoteCount,
-      company: company,
-      badgeLetter: badgeLetter,
-      daysAgo: daysAgo,
-      text: text,
-    };
-    renderFeedbackItem(feedbackItem);
-
-    // send feedback item to server
-    fetch(`${BASE_API_URL}/feedbacks`, {
-      method: "POST",
-      body: JSON.stringify(feedbackItem),
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    })
-      .then((response) => {
-        if (!response.ok) {
-          console.log("Something went wrong");
-          return;
-        }
-
-        console.log("Successfully submitted");
-      })
-      .catch((error) => console.log(error));
-
-    // clear textarea
-    textareaEl.value = "";
-
-    // blur submit button
-    submitBtnEl.blur();
-
-    // reset counter
-    counterEl.textContent = MAX_CHARS;
-  };
-
-  formEl.addEventListener("submit", submitHandler);
-})();
-
-// -- FEEDBACK LIST COMPONENT --
-(() => {
-  const clickHandler = (event) => {
-    // get clicked HTML-element
-    const clickedEl = event.target;
-
-    // determine if user intended to upvote or expand
-    const upvoteIntention = clickedEl.className.includes("upvote");
-
-    // run the appropriate logic
-    if (upvoteIntention) {
-      // get the closest upvote button
-      const upvoteBtnEl = clickedEl.closest(".upvote");
-
-      // disable upvote button (prevent double-clicks, spam)
-      upvoteBtnEl.disabled = true;
-
-      // select the upvote count element within the upvote button
-      const upvoteCountEl = upvoteBtnEl.querySelector(".upvote__count");
-
-      // get currently displayed upvote count as number (+)
-      let upvoteCount = +upvoteCountEl.textContent;
-
-      // set upvote count incremented by 1
-      upvoteCountEl.textContent = ++upvoteCount;
-    } else {
-      // expand the clicked feedback item
-      clickedEl.closest(".feedback").classList.toggle("feedback--expand");
-    }
-  };
-
-  feedbackListEl.addEventListener("click", clickHandler);
-
-  fetch(`${BASE_API_URL}/feedbacks`)
-    .then((response) => response.json())
-    .then((data) => {
-      // remove spinner
-      spinnerEl.remove();
-
-      // iterate over each element in feedbacks array and render it in list
-      data.feedbacks.forEach((feedbackItem) =>
-        renderFeedbackItem(feedbackItem)
-      );
-    })
-    .catch((error) => {
-      feedbackListEl.textContent = `Failed to fetch feedback items. Error message: ${error.message}`;
-    });
-})();
-
-// -- HASHTAG LIST COMPONENT --
-(() => {
-  const clickHandler = (event) => {
-    // get the clicked element
-    const clickedEl = event.target;
-
-    // stop function if click happened in list, but outside buttons
-    if (clickedEl.className === "hashtags") return;
-
-    // extract company name
-    const companyNameFromHashtag = clickedEl.textContent
-      .substring(1)
-      .toLowerCase()
-      .trim();
-
-    // iterate over each feedback item in the list
-    feedbackListEl.childNodes.forEach((childNode) => {
-      // stop this iteration if it's a text node
-      if (childNode.nodeType === 3) return;
-
-      // extract company name
-      const companyNameFromFeedbackItem = childNode
-        .querySelector(".feedback__company")
-        .textContent.toLowerCase()
-        .trim();
-
-      // hide feedback item if company names are not equal
-      if (companyNameFromHashtag !== companyNameFromFeedbackItem) {
-        childNode.style.display = "none";
-      } else {
-        childNode.style.display = "flex"; // Show matching items
-      }
-    });
-  };
-
-  hashtagListEl.addEventListener("click", clickHandler);
-})();
+searchFormEl.addEventListener("submit", submitHandler);
